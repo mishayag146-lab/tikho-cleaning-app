@@ -80,13 +80,18 @@ async function owner(initialize = false) {
   const h = await headers();
   const user = h.get("oai-authenticated-user-id");
   if (!user) throw new Error("Войдите в аккаунт владельца|401");
-  if (initialize)
+  const existing = await configRow();
+  if (initialize && !existing) {
+    const email = h.get("oai-authenticated-user-email")?.trim().toLowerCase();
+    if (!env.TIKHO_OWNER_EMAIL || email !== env.TIKHO_OWNER_EMAIL.trim().toLowerCase())
+      throw new Error("Доступ только владельцу|403");
     await env
       .DB!.prepare(
         "INSERT INTO settings(id,owner,data) VALUES(1,?,?) ON CONFLICT(id) DO NOTHING",
       )
       .bind(user, JSON.stringify(defaults))
       .run();
+  }
   const row = await configRow();
   if (!row || row.owner !== user)
     throw new Error("Доступ только владельцу|403");
